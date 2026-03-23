@@ -1,77 +1,114 @@
-# Debian-13-Docker-Swarm-Secure-Deployment-
+# Debian-13-Docker-Swarm-Secure-Deployment
 
-Description
+![CI](https://img.shields.io/github/actions/workflow/status/Browork8567/swarm-secure-bootstrap/ci.yml?branch=main)
+![Security Scan](https://img.shields.io/github/actions/workflow/status/Browork8567/swarm-secure-bootstrap/security.yml?branch=main\&label=security)
+![License](https://img.shields.io/github/license/Browork8567/swarm-secure-bootstrap)
+![Last Commit](https://img.shields.io/github/last-commit/Browork8567/swarm-secure-bootstrap)
+![Issues](https://img.shields.io/github/issues/Browork8567/swarm-secure-bootstrap)[![Deploy]
+[![Deploy](https://img.shields.io/badge/Deploy-Homelab-blue?style=for-the-badge)](https://github.com/Browork8567/swarm-secure-bootstrap)
 
-Hi! I have been working in my homelab to migrate to docker swarm. As I moved through the process i had multiple scripts written by AI but I have always kept a security first posture in mind. AI  is much faster than i ever will be at writing them, and if a tool exists why not use it?  I directed the architecture, and researched best practices and used them to shape the infastructure as i went. I kept AI to a  limited scope with clear inputs and expected outputs. I double checked function the scripts, have run them myself, and have debugged for many hours along the way to get to this point. I thought this was really cool and wanted to share. 
 
-This is my first time publishing to github so if the repo is a little weird, I appologize and I am eternally greatful for any help. :) 
+## Description
 
-# Deployment Philosophy
+Hi! I have been working in my homelab to migrate to Docker Swarm. As I moved through the process, I created multiple scripts with the assistance of AI. However, I have always maintained a security-first posture.
 
-* **Idempotent** → safe to re-run
-* **No shared state dependency** (no NAS tokens)
-* **Self-healing where possible**
-* **Fail-safe where not**
+AI is much faster than I will ever be at writing scripts, and if a tool exists, why not use it? I directed the architecture, researched best practices, and used them to shape the infrastructure as I went. I kept AI within a limited scope with clear inputs and expected outputs.
+
+I have tested the scripts, run them myself, and debugged for many hours along the way to reach this point. I thought this was really cool and wanted to share it.
+
+This repo is:
+- A production-ready, security-focused Docker Swarm bootstrap for Debian systems.
+- Designed for homelabs and small clusters, this project provides automated node provisioning, secure SSH-based swarm   joining, firewall hardening, and optional NAS integration—without relying on shared state or stored tokens.
+
+This is my first time publishing to GitHub, so if the repo is a little rough, I apologize and I am very grateful for any feedback ether on the scripts or how to format the repo in a better way. 🙂
+
 
 ---
 
+## 🚀 Overview
 
-## ⚠️ WARNING
+A production-ready, security-focused Docker Swarm bootstrap for Debian-based systems.
 
-Scripts were written with the assitance of AI
+Designed for homelabs and small clusters, this project provides:
+
+* Automated node provisioning
+* Secure SSH-based swarm joining (no token storage)
+* Firewall hardening (UFW + Fail2Ban)
+* Optional NAS integration
+* Idempotent, re-runnable infrastructure
+
+---
+
+## 📦 Features
+
+* 🔐 Secure Docker install (official repo)
+* 🔑 SSH key automation + permissions fix
+* 🔥 UFW firewall (Swarm-safe rules)
+* 🚫 Fail2Ban (5 attempts → 5-minute ban)
+* 🔄 Auto Swarm join (SSH-based, no shared tokens)
+* 💾 Optional NAS mount + health guard
+* 🧪 CI validation + secret scanning ready
+* ♻️ Idempotent design (safe to rerun)
+
+---
+
+## ⚠️ Security Warning
 
 Docker group = root access.
 Treat all swarm nodes as **trusted systems**.
 
 ---
 
-# 🚀 Swarm Secure Bootstrap
+## 🧱 Architecture
 
-Production-ready Docker Swarm bootstrap for Debian-based systems.
+```text
+                    +--------------+
+                    |   mgr-01     |
+                    |   (Leader)   |
+                    |  Drain Mode  |
+                    +------+-------+
+                           |
+            +--------------+--------------+
+            |              |              |
+     +-------------+ +-------------+ +-------------+
+     |   mgr-02    | |   mgr-03    | |  worker-01  |
+     | manager+wk  | | manager+wk  | |   worker    |
+     +-------------+ +-------------+ +-------------+
 
----
-
-## ✨ Features
-
-* Secure Docker installation (official repo)
-* SSH key automation + hardening
-* UFW firewall (Swarm-safe)
-* Fail2Ban (5 attempts → 5 minute ban)
-* Auto Swarm join (SSH-based, no tokens stored)
-* Optional NAS integration (non-blocking)
-* No plaintext credentials in repo
-* CI validation + secret scanning ready
-
----
-## 🔐 Security Model
-
-* No plaintext credentials
-* No open LAN firewall
-* SSH locked to admin IP
-* Fail2Ban enabled (5 attempts → 5 min ban)
-* Secrets should be stored in Docker (not repo)
-* Swarm ports restricted to internal network only
+        Swarm Ports:
+        - 2377 (manager)
+        - 7946 (gossip)
+        - 4789 (overlay)
+```
 
 ---
 
-# ⚡ Quick Start
+## Cli one step deploy, THIS PIPES IN BASH SO BE AWARE IT
 
-## 1. Clone or download repo
 
-(Download ZIP from GitHub UI and extract)
+curl -fsSL https://raw.githubusercontent.com/yourusername/swarm-secure-bootstrap/main/bootstrap.sh | sudo bash
 
-## 2. Edit configuration
+---
+
+##  Start
+
+### 1. Download the repo
+
+Download ZIP from GitHub and extract.
+
+---
+
+### 2. Configure your environment
 
 Edit:
 
+```bash
+config/config.env
 ```
-- config/config.env
 
-```
+Update values:
 
-Update:
-
-
+```bash
 MGR1_HOSTNAME="mgr-01.lan"
 MGR1_IP="192.168.1.10"
 
@@ -79,79 +116,76 @@ LAN_SUBNET="192.168.1.0/24"
 ADMIN_IP="192.168.1.50"
 
 NAS_IP="192.168.1.100"
-
-```
-
-## 3. Run bootstrap on EACH node
-
-
-- sudo bash bootstrap.sh
-
 ```
 
 ---
 
-## 4. Setup SSH trust (REQUIRED)
+### 3. Run bootstrap (ALL nodes)
+
+```bash
+sudo bash bootstrap.sh
+```
+
+---
+
+### 4. Setup SSH trust
 
 Run on all nodes except primary:
 
-
+```bash
 ssh-copy-id <user>@mgr-01.lan
 ```
 
 ---
 
-## 5. Start swarm
+### 5. Start Swarm
 
-On primary manager:
+Primary node:
 
 ```bash
 sudo systemctl start swarm-auto.service
 ```
 
-Then on all other nodes:
+Other nodes:
 
+```bash
 sudo systemctl start swarm-auto.service
-
 ```
 
 ---
 
-## 6. Verify cluster
+### 6. Verify
 
+```bash
 docker node ls
-
 ```
 
-# 🧠 Required Environment Setup
+---
 
-## Hostnames
+## 🧠 Required Environment Setup
 
-Each node MUST have a unique hostname:
+### Hostnames
 
-```
+```bash
 mgr-01
 mgr-02
 mgr-03
 worker-01
-
 ```
 
 Set with:
 
+```bash
 sudo hostnamectl set-hostname mgr-01
-
 ```
 
-## DNS (REQUIRED)
+---
 
-You MUST ensure all nodes can resolve the primary manager.
+### DNS (REQUIRED)
 
-### Option A — Local DNS (recommended)
+#### Option A — Local DNS (Recommended)
 
-Example using Pi-hole:
-
-```
+```text
 mgr-01.lan → 192.168.1.10
 mgr-02.lan → 192.168.1.11
 mgr-03.lan → 192.168.1.12
@@ -159,125 +193,74 @@ mgr-03.lan → 192.168.1.12
 
 ---
 
-### Option B — /etc/hosts fallback
+#### Option B — /etc/hosts fallback
 
-The bootstrap automatically injects:
+Automatically injected:
 
-```
+```bash
 192.168.1.10 mgr-01.lan mgr-01
-```
-## 🧩 Post Install (Minimal)
-
-- on each host
-ssh-copy-id USER@mgr-01
-sudo systemctl start swarm-auto.service
-docker node ls
-
-# 🧱 Architecture
-
-```
-                ┌──────────────┐
-                │  mgr-01      │
-                │  (Leader)    │
-                │  Drain Mode  │
-                └──────┬───────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
- ┌────────────┐ ┌────────────┐ ┌────────────┐
- │ mgr-02     │ │ mgr-03     │ │ worker-01  │
- │ manager+wk │ │ manager+wk │ │ worker     │
- └────────────┘ └────────────┘ └────────────┘
-
-        Swarm Ports:
-        2377 (manager)
-        7946 (gossip)
-        4789 (overlay)
 ```
 
 ---
 
-# 🧪 Troubleshooting
+## 🧩 Post Install
 
-## ❌ Nodes create their own swarm
+```bash
+ssh-copy-id USER@mgr-01
+sudo systemctl start swarm-auto.service
+docker node ls
+```
 
-**Cause:**
+---
 
-* Cannot reach mgr-01
-* DNS failure
-* SSH failure
+## 🔐 Security Model
 
-**Fix:**
+* No plaintext credentials
+* No open LAN firewall
+* SSH restricted to admin IP
+* Fail2Ban enabled (5 attempts → 5-minute ban)
+* Secrets stored in Docker (not repo)
+* Swarm ports restricted to internal network
+
+---
+
+## 🧪 Troubleshooting
+
+### Nodes create their own swarm
 
 ```bash
 ssh mgr-01.lan
 ```
 
-If this fails → fix DNS or SSH.
+Fix DNS or SSH if this fails.
 
 ---
 
-## ❌ `permission denied docker.sock`
+### Docker permission denied
 
 ```bash
 newgrp docker
 ```
 
-OR log out and back in.
-
 ---
 
-## ❌ Swarm port 2377 disappears
-
-**Cause:**
-Docker daemon restart (NOT a swarm failure)
-
-Check:
-
-```bash
-journalctl -u docker -f
-```
-
-If you see:
-
-```
-Stopping Docker Application Container Engine
-```
-
-→ something is restarting Docker (fix that, not swarm)
-
----
-
-## ❌ swarm-auto.service fails
+### Swarm service fails
 
 ```bash
 journalctl -xeu swarm-auto.service
 ```
 
-Common causes:
-
-* SSH not set up
-* mgr-01 unreachable
-* wrong hostname
-* DNS failure
-
 ---
 
-## ❌ Stuck on “Waiting for mgr-01”
-
-Check:
+### Stuck joining swarm
 
 ```bash
 ssh -o BatchMode=yes user@mgr-01.lan docker info
 ```
 
-If this fails → fix SSH or Docker permissions on mgr-01
-
 ---
 
-## ❌ Permission denied writing to ~/.ssh
-
-Fix ownership:
+### SSH permission errors
 
 ```bash
 sudo chown -R $USER:$USER ~/.ssh
@@ -287,28 +270,66 @@ chmod 600 ~/.ssh/*
 
 ---
 
-## ❌ NAS mount issues
-
-Check:
+### NAS issues
 
 ```bash
 mount | grep /data
-```
-
-Run guard manually:
-
-```bash
 sudo /usr/local/bin/docker-mount-guard.sh
 ```
 
+---
 
 ## 🧪 Validation & Safety
 
 This repo includes:
 
-* Shell script linting (ShellCheck)
-* Secret scanning (Gitleaks)
-* Dependency monitoring (Dependabot)
+* ShellCheck (linting)
+* Gitleaks (secret scanning)
+* Dependabot (dependency updates)
 
+---
+
+## 📁 Repository Structure
+
+```text
+swarm-secure-bootstrap/
+│
+├── bootstrap.sh
+├── README.md
+│
+├── config/
+│   └── config.env.example
+│
+├── scripts/
+│   ├── 01-base.sh
+│   ├── 02-docker.sh
+│   ├── 03-ssh.sh
+│   ├── 04-ufw.sh
+│   ├── 05-nas.sh
+│   ├── 06-nas-guard.sh
+│   ├── 07-swarm.sh
+│   └── 08-hardening.sh
+│
+├── systemd/
+│   ├── docker-mount-guard.service
+│   ├── docker-mount-guard.timer
+│   └── swarm-auto.service
+│
+└── secrets/
+    └── README.md
+```
+
+---
+
+## ❤️ Contributing
+
+Pull requests welcome.
+Security improvements especially appreciated.
+
+---
+
+## 📄 License
+
+MIT License (recommended)
 
 
