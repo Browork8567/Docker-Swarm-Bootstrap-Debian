@@ -72,7 +72,19 @@ Treat all swarm nodes as **trusted systems**.
 
 ### 1. Download the repo
 
-Download ZIP from GitHub and extract.
+```bash
+curl -L https://github.com/Browork8567/Docker-Swarm-Bootstrap-Debian/archive/refs/heads/main.tar.gz -o swarm-bootstrap.tar.gz
+tar -xzf swarm-bootstrap.tar.gz
+cd Docker-Swarm-Bootstrap-Debian-main
+```
+
+---
+
+### Option B — Download manually
+
+1. Click **Code → Download ZIP**
+2. Extract the archive
+3. Open a terminal in the extracted folder
 
 ---
 
