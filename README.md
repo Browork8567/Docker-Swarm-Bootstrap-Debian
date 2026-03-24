@@ -1,12 +1,12 @@
 # Debian-13-Docker-Swarm-Secure-Deployment
 
-![CI](https://img.shields.io/github/actions/workflow/status/REPLACE_USERNAME/REPO_NAME/ci.yml?branch=main\&label=CI\&style=flat-square)
-![Security](https://img.shields.io/github/actions/workflow/status/REPLACE_USERNAME/REPO_NAME/security.yml?branch=main\&label=Security\&style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/REPLACE_USERNAME/REPO_NAME?style=flat-square)
-![Issues](https://img.shields.io/github/issues/REPLACE_USERNAME/REPO_NAME?style=flat-square)
-![License](https://img.shields.io/github/license/REPLACE_USERNAME/REPO_NAME?style=flat-square)
+![CI](https://img.shields.io/github/actions/workflow/status/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-/ci.yml?branch=main\&label=CI\&style=flat-square)
+![Security](https://img.shields.io/github/actions/workflow/status/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-/security.yml?branch=main\&label=Security\&style=flat-square)
+![Last Commit](https://img.shields.io/github/last-commit/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-?style=flat-square)
+![Issues](https://img.shields.io/github/issues/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-?style=flat-square)
+![License](https://img.shields.io/github/license/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-?style=flat-square)
 
-[![Deploy](https://img.shields.io/badge/Deploy-Homelab-blue?style=for-the-badge)](https://github.com/REPLACE_USERNAME/REPO_NAME)
+[![Deploy](https://img.shields.io/badge/Deploy-Homelab-blue?style=for-the-badge)](https://github.com/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-)
 
 ---
 
