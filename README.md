@@ -1,13 +1,5 @@
 # Docker-Swarm-Secure-Deployment-Built on Debian
 
-![CI](https://img.shields.io/github/actions/workflow/status/REPLACE_USERNAME/Debian-13-Docker-Swarm-Secure-Deployment/ci.yml?branch=main\&label=CI\&style=flat-square)
-![Security](https://img.shields.io/github/actions/workflow/status/REPLACE_USERNAME/Debian-13-Docker-Swarm-Secure-Deployment/security.yml?branch=main\&label=Security\&style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/REPLACE_USERNAME/Debian-13-Docker-Swarm-Secure-Deployment?style=flat-square)
-![Issues](https://img.shields.io/github/issues/REPLACE_USERNAME/Debian-13-Docker-Swarm-Secure-Deployment?style=flat-square)
-![License](https://img.shields.io/github/license/REPLACE_USERNAME/Debian-13-Docker-Swarm-Secure-Deployment?style=flat-square)
-
-
-
 ## Description
 
 Hi! I have been working in my homelab to migrate to Docker Swarm. As I moved through the process, I created multiple scripts with the assistance of AI. 
