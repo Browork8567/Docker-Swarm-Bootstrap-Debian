@@ -1,4 +1,4 @@
-# Debian-13-Docker-Swarm-Secure-Deployment
+# Automated-Docker-Swarm-Deployment-Based-On-Debian
 
 ![Security](https://img.shields.io/github/actions/workflow/status/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-/security.yml?branch=main\&label=Security\&style=flat-square)
 ![Last Commit](https://img.shields.io/github/last-commit/Browork8567/Debian-13-Docker-Swarm-Secure-Deployment-?style=flat-square)
