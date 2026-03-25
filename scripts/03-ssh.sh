@@ -1,22 +1,18 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-echo "[03] SSH hardening + key setup..."
+MANAGERS_CSV="$1"
+IFS=',' read -ra MANAGERS <<< "$MANAGERS_CSV"
 
-CURRENT_USER=$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")
-HOME_DIR=$(eval echo "~$CURRENT_USER")
-SSH_DIR="$HOME_DIR/.ssh"
+echo "[INFO] Setting up SSH trust..."
 
-mkdir -p "$SSH_DIR"
-chmod 700 "$SSH_DIR"
-chown -R "$CURRENT_USER:$CURRENT_USER" "$SSH_DIR"
-
-if [ ! -f "$SSH_DIR/id_ed25519" ]; then
-  sudo -u "$CURRENT_USER" ssh-keygen -t ed25519 -N "" -f "$SSH_DIR/id_ed25519"
+if [[ ! -f "$HOME/.ssh/id_rsa" ]]; then
+    ssh-keygen -t rsa -N "" -f "$HOME/.ssh/id_rsa"
 fi
 
-touch "$SSH_DIR/authorized_keys"
-chmod 600 "$SSH_DIR/authorized_keys"
-chown "$CURRENT_USER:$CURRENT_USER" "$SSH_DIR/authorized_keys"
+for MANAGER in "${MANAGERS[@]}"; do
+    echo "[INFO] Copying SSH key to $MANAGER"
+    ssh-copy-id -o StrictHostKeyChecking=no "$MANAGER" || true
+done
 
-echo "[03] SSH ready."
+echo "[INFO] SSH trust setup complete"

@@ -1,41 +1,41 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-echo "[02] Installing Docker..."
+CURRENT_USER=$(logname)
+
+echo "[INFO] Installing Docker..."
+
+apt-get update
+apt-get install -y ca-certificates curl gnupg lsb-release
 
 install -m 0755 -d /etc/apt/keyrings
 
 curl -fsSL https://download.docker.com/linux/debian/gpg \
   | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" \
+  > /etc/apt/sources.list.d/docker.list
 
-ARCH="$(dpkg --print-architecture)"
-CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-
-echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/debian $CODENAME stable" \
-> /etc/apt/sources.list.d/docker.list
-
-apt-get update -qq
+apt-get update
 
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-systemctl enable --now docker
-
-CURRENT_USER=$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")
-usermod -aG docker "$CURRENT_USER"
-
-echo "[02] Docker installed. 
+systemctl enable docker
+systemctl start docker
 
 echo "[INFO] Adding user to docker group..."
 
 usermod -aG docker "$CURRENT_USER"
 
-# Apply immediately (fixes SSH execution issue)
+# Apply immediately (critical fix)
 if ! groups "$CURRENT_USER" | grep -q docker; then
     echo "[INFO] Applying docker group without logout"
     newgrp docker <<EOF
 echo "docker group applied"
 EOF
 fi
+
+echo "[INFO] Docker installed successfully"

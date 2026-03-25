@@ -1,58 +1,48 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-cat << 'EOF' > /usr/local/bin/swarm-role.sh
-#!/usr/bin/env bash
-set -euo pipefail
+NODE_ROLE="$1"
+MANAGERS_CSV="$2"
 
-HOST=$(hostname)
-CURRENT_USER=$(logname 2>/dev/null || echo "${SUDO_USER:-$USER}")
+IFS=',' read -ra MANAGERS <<< "$MANAGERS_CSV"
 
-MGR1_HOSTNAME="${MGR1_HOSTNAME:-mgr-01.lan}"
+get_join_token() {
+    ROLE="$1"
 
-if docker info 2>/dev/null | grep -q "Swarm: active"; then
-    exit 0
-fi
+    for MANAGER in "${MANAGERS[@]}"; do
+        if ssh -o ConnectTimeout=3 "$MANAGER" "docker info" >/dev/null 2>&1; then
+            echo "[INFO] Using manager $MANAGER for token"
+            ssh "$MANAGER" "docker swarm join-token -q $ROLE"
+            return 0
+        fi
+    done
 
-#######################################
-# PRIMARY MANAGER
-#######################################
+    echo "[ERROR] No reachable managers"
+    exit 1
+}
 
-if [[ "$HOST" == "mgr-01" ]]; then
-    echo "[INFO] Initializing primary manager"
-    /usr/local/bin/swarm-init.sh
+if [[ "$NODE_ROLE" == "manager" ]]; then
 
-#######################################
-# SECONDARY MANAGERS
-#######################################
+    if docker info 2>/dev/null | grep -q "Swarm: active"; then
+        echo "[INFO] Already part of a swarm"
+    else
+        echo "[INFO] Attempting to join existing swarm..."
+
+        TOKEN=$(get_join_token manager)
+
+        for MANAGER in "${MANAGERS[@]}"; do
+            docker swarm join --token "$TOKEN" "$MANAGER:2377" && break || true
+        done || docker swarm init
+    fi
 
 else
-    echo "[INFO] Checking if primary manager is reachable..."
+    echo "[INFO] Joining as worker..."
 
-    if ssh -o BatchMode=yes -o ConnectTimeout=3 "$CURRENT_USER@$MGR1_HOSTNAME" "docker info" >/dev/null 2>&1; then
-        echo "[INFO] Primary reachable → joining"
-        /usr/local/bin/swarm-join.sh manager
-    else
-        echo "[WAIT] Primary not ready yet, retrying..."
-        sleep 5
-        exit 1
-    fi
+    TOKEN=$(get_join_token worker)
+
+    for MANAGER in "${MANAGERS[@]}"; do
+        docker swarm join --token "$TOKEN" "$MANAGER:2377" && break || true
+    done
 fi
 
-#######################################
-# NODE ROLE BEHAVIOR
-#######################################
-
-if docker info | grep -q "Is Manager: true"; then
-    if [[ "$HOST" == "mgr-01" ]]; then
-        docker node update --availability drain "$HOST" || true
-    else
-        docker node update --availability active "$HOST" || true
-    fi
-fi
-
-EOF
-
-chmod +x /usr/local/bin/swarm-role.sh
-
-echo "[07] Swarm ready."
+echo "[INFO] Swarm setup complete"
