@@ -6,66 +6,30 @@ CONFIG_FILE="$CONFIG_DIR/config.json"
 
 mkdir -p "$CONFIG_DIR"
 
-echo "==== Swarm Bootstrap Configuration ===="
+echo "[INFO] Starting interactive configuration..."
 
-CURRENT_USER=$(logname)
+read -rp "Enter node role (manager/worker): " ROLE
+read -rp "Enter node IP address: " NODE_IP
+read -rp "Enter admin username: " ADMIN_USER
+read -rp "Enter admin IP address: " ADMIN_IP
 
-read -p "Node role (manager/worker): " NODE_ROLE
-read -p "Hostname: " HOSTNAME
-read -p "Node IP: " NODE_IP
+IS_PRIMARY_MANAGER=false
 
-read -p "Manager IPs (comma-separated): " MANAGERS
-
-# Admin user
-read -p "Is admin user '$CURRENT_USER'? (y/n): " USE_CURRENT
-if [[ "$USE_CURRENT" == "y" ]]; then
-    ADMIN_USER="$CURRENT_USER"
-else
-    read -p "Enter admin username: " ADMIN_USER
-fi
-
-# Admin IP (auto-detect)
-AUTO_IP=$(who am i | awk '{print $5}' | tr -d '()')
-echo "[INFO] Detected admin IP: $AUTO_IP"
-
-read -p "Use detected IP? (y/n): " USE_AUTO
-if [[ "$USE_AUTO" == "y" ]]; then
-    ADMIN_IP="$AUTO_IP"
-else
-    read -p "Enter admin IP: " ADMIN_IP
-fi
-
-# Manager mode
-if [[ "$NODE_ROLE" == "manager" ]]; then
-    read -p "Manager availability (active/drain): " MANAGER_MODE
-else
-    MANAGER_MODE="n/a"
-fi
-
-# Worker promotion
-if [[ "$NODE_ROLE" == "worker" ]]; then
-    read -p "Enable manager promotion candidate? (y/n): " CANDIDATE
-    if [[ "$CANDIDATE" == "y" ]]; then
-        echo "[INFO] Lower number = higher priority"
-        read -p "Enter candidate priority (1,2,3...): " PRIORITY
-    else
-        PRIORITY=""
+if [[ "$ROLE" == "manager" ]]; then
+    read -rp "Is this the PRIMARY manager node? (y/n): " PRIMARY_INPUT
+    if [[ "$PRIMARY_INPUT" =~ ^[Yy]$ ]]; then
+        IS_PRIMARY_MANAGER=true
     fi
-else
-    PRIORITY=""
 fi
 
 cat > "$CONFIG_FILE" <<EOF
 {
-  "role": "$NODE_ROLE",
-  "hostname": "$HOSTNAME",
+  "role": "$ROLE",
   "node_ip": "$NODE_IP",
-  "managers": [$(echo $MANAGERS | sed 's/,/","/g' | sed 's/^/"/;s/$/"/')],
   "admin_user": "$ADMIN_USER",
   "admin_ip": "$ADMIN_IP",
-  "manager_mode": "$MANAGER_MODE",
-  "candidate_priority": "$PRIORITY"
+  "is_primary_manager": $IS_PRIMARY_MANAGER
 }
 EOF
 
-echo "[INFO] Config written to $CONFIG_FILE"
+echo "[INFO] Configuration saved to $CONFIG_FILE"

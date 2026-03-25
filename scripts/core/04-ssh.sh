@@ -9,6 +9,11 @@ KEY_FILE="$SSH_DIR/id_rsa"
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 
+if [[ ! -f /etc/swarm-bootstrap/nodes.json ]]; then
+    echo "[WARN] nodes.json not found, skipping SSH sync"
+    exit 0
+fi
+
 if [[ ! -f "$KEY_FILE" ]]; then
     ssh-keygen -t rsa -b 4096 -f "$KEY_FILE" -N ""
 fi
@@ -23,8 +28,10 @@ MANAGERS=$(jq -r '.managers[]?' /etc/swarm-bootstrap/nodes.json || true)
 for NODE in $MANAGERS; do
     echo "[INFO] Syncing SSH key to $NODE"
 
-    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
-        "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+for i in {1..3}; do
+    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" "mkdir -p ~/.ssh && chmod 700 ~/.ssh" && break
+    sleep 2
+done
 
     ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
         "grep -qxF '$(cat $KEY_FILE.pub)' ~/.ssh/authorized_keys || \
