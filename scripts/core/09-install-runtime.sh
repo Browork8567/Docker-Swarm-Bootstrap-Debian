@@ -54,14 +54,12 @@ systemctl daemon-reexec
 systemctl daemon-reload
 
 # Enable and start timers/services
-echo "[INFO] Enabling and starting systemd units..."
-for svc in "${SERVICES[@]}"; do
-    if [[ -f "$SYSTEMD_DIR/$svc" ]]; then
-        systemctl enable --now "$svc"
-        echo "[INFO] Enabled and started $svc"
-    else
-        echo "[WARN] Cannot enable missing $svc"
-    fi
-done
+
+if [[ "$svc" == *.timer ]]; then
+    systemctl enable --now "$svc"
+    echo "[INFO] Enabled and started $svc"
+else
+    echo "[INFO] Skipping enable for $svc (service triggered by timer)"
+fi
 
 echo "[INFO] Runtime services configured successfully."

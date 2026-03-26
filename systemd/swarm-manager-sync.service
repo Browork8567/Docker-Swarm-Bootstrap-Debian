@@ -1,9 +1,6 @@
 [Unit]
-Description=Sync manager config every 5 minutes
+Description=Sync manager config
 
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=5min
-
-[Install]
-WantedBy=timers.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/swarm-manager-sync.sh

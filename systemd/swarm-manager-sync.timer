@@ -1,6 +1,10 @@
 [Unit]
-Description=Sync Swarm Manager Config
-After=docker.service
+Description=Run manager sync every 5 minutes
 
-[Service]
-ExecStart=/usr/local/bin/swarm-manager-sync.sh
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=swarm-manager-sync.service
+
+[Install]
+WantedBy=timers.target
