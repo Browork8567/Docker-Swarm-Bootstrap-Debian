@@ -25,13 +25,31 @@ fi
 read -rp "Do you want to configure NAS storage? (y/n): " NAS_ENABLE
 
 NAS_IP=null
+NAS_SHARE=null
 NAS_PATH=null
 NAS_USER=null
+NAS_PASS=null
 
 if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
     read -rp "Enter NAS IP address: " NAS_IP
-    read -rp "Enter NAS mount path (e.g. /mnt/storage): " NAS_PATH
-    read -rp "Enter NAS username: " NAS_USER
+    read -rp "Enter NAS share name (e.g. media): " NAS_SHARE
+    read -rp "Enter local mount path (e.g. /mnt/media): " NAS_PATH
+    read -rp "Enter NAS username (service account recommended): " NAS_USER
+    read -rsp "Enter NAS password: " NAS_PASS
+    echo
+fi
+
+if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
+    echo "[INFO] Storing NAS credentials securely..."
+
+    CRED_FILE="/root/.nas-cred"
+
+    cat > "$CRED_FILE" <<EOF
+username=$NAS_USER
+password=$NAS_PASS
+EOF
+
+    chmod 600 "$CRED_FILE"
 fi
 
 cat > "$CONFIG_FILE" <<EOF
@@ -42,9 +60,9 @@ cat > "$CONFIG_FILE" <<EOF
   "admin_ip": "$ADMIN_IP",
   "is_primary_manager": $IS_PRIMARY_MANAGER,
   "nas_ip": "$NAS_IP",
+  "nas_share": "$NAS_SHARE",
   "nas_path": "$NAS_PATH",
   "nas_user": "$NAS_USER"
 }
-EOF
 
 echo "[INFO] Configuration saved to $CONFIG_FILE"
