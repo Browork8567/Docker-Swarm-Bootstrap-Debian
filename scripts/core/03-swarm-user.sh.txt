@@ -13,6 +13,16 @@ else
     echo "[INFO] swarmd user created"
 fi
 
+# Check if group exists; create if missing
+if getent group swarmd >/dev/null 2>&1; then
+    echo "[INFO] swarmd group already exists"
+else
+    echo "[INFO] Creating swarmd group..."
+    groupadd -r swarmd
+    echo "[INFO] swarmd group created"
+fi
+
+
 # -------------------------------
 # ENSURE HOME + SSH DIR
 # -------------------------------

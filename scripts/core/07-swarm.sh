@@ -48,7 +48,7 @@ EOF
 fi
 
 # -------------------------------
-# JOIN EXISTING SWARM (FIXED)
+# JOIN EXISTING SWARM (REWORKED)
 # -------------------------------
 if [[ -z "$PRIMARY_MANAGER" || "$PRIMARY_MANAGER" == "null" ]]; then
     echo "[ERROR] No primary manager defined in config"
@@ -57,31 +57,36 @@ fi
 
 echo "[INFO] Joining swarm via primary manager: $PRIMARY_MANAGER"
 
-echo "[INFO] Joining swarm via primary manager: $PRIMARY_MANAGER"
+SSH_USER="swarmd"
+SSH_KEY="/home/swarmd/.ssh/id_rsa"
+SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
 
-SSH_CMD="sudo -u swarmd ssh -i /home/swarmd/.ssh/id_rsa \
-    -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
-    -o ConnectTimeout=5 \
-    swarmd@$PRIMARY_MANAGER"
+# Retry SSH connection to primary manager
+for i in {1..5}; do
+    if sudo -u swarmd ssh $SSH_OPTS "$SSH_USER@$PRIMARY_MANAGER" "docker info" >/dev/null 2>&1; then
+        break
+    else
+        echo "[WARN] Attempt $i: cannot reach primary manager, retrying in 3s..."
+        sleep 3
+    fi
+done
 
-# Test connectivity
-if ! $SSH_CMD "docker info" >/dev/null 2>&1; then
-    echo "[ERROR] Cannot reach primary manager via swarmd SSH"
+# Final connectivity check
+if ! sudo -u swarmd ssh $SSH_OPTS "$SSH_USER@$PRIMARY_MANAGER" "docker info" >/dev/null 2>&1; then
+    echo "[ERROR] Cannot reach primary manager via swarmd SSH after retries"
     exit 1
 fi
 
-# Get join token
-TOKEN=$($SSH_CMD "docker swarm join-token -q $ROLE")
+# Fetch join token as swarmd
+TOKEN=$(sudo -u swarmd ssh $SSH_OPTS "$SSH_USER@$PRIMARY_MANAGER" "docker swarm join-token -q $ROLE")
 
-# Join the swarm
+# Join the swarm using the token
 if docker swarm join --token "$TOKEN" "$PRIMARY_MANAGER:2377"; then
     echo "[INFO] Successfully joined swarm"
 else
     echo "[ERROR] Failed to join swarm"
     exit 1
 fi
-
 # -------------------------------
 # POST-JOIN VALIDATION
 # -------------------------------

@@ -66,7 +66,7 @@ for NODE in $MANAGERS; do
 
     # Retry loop for SSH mkdir
     for i in {1..3}; do
-        if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
+        if sudo -u swarmd ssh -i "$KEY_FILE" -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
             "mkdir -p ~/.ssh && chmod 700 ~/.ssh"; then
             break
         else
@@ -75,11 +75,12 @@ for NODE in $MANAGERS; do
         fi
     done
 
-    # Push public key (idempotent)
+    # Push public key (idempotent) as swarmd
     PUB_KEY=$(cat "$KEY_FILE.pub")
-    ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
+    sudo -u swarmd ssh -i "$KEY_FILE" -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$NODE" \
         "grep -qxF '$PUB_KEY' ~/.ssh/authorized_keys || \
          echo 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty $PUB_KEY' >> ~/.ssh/authorized_keys"
+
 done
 
 # -------------------------------
