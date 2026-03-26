@@ -5,7 +5,7 @@ CONFIG="/etc/swarm-bootstrap/config.json"
 NODES_JSON="/etc/swarm-bootstrap/nodes.json"
 INIT_FLAG="/etc/swarm-bootstrap/.initialized"
 
-echo "[08] Configuring Docker Swarm..."
+echo "[07] Configuring Docker Swarm..."
 
 # Validate config exists
 if [[ ! -f "$CONFIG" ]]; then
@@ -16,6 +16,7 @@ fi
 ROLE=$(jq -r .role "$CONFIG")
 NODE_IP=$(jq -r .node_ip "$CONFIG")
 IS_PRIMARY=$(jq -r .is_primary_manager "$CONFIG")
+PRIMARY_MANAGER=$(jq -r .primary_manager_ip "$CONFIG")
 
 # -------------------------------
 # PRIMARY MANAGER INIT
@@ -47,49 +48,32 @@ EOF
 fi
 
 # -------------------------------
-# JOIN EXISTING SWARM
+# JOIN EXISTING SWARM (FIXED)
 # -------------------------------
-echo "[INFO] Attempting to join existing swarm..."
-
-# Wait for nodes.json to exist
-for i in {1..30}; do
-    if [[ -f "$NODES_JSON" ]]; then
-        break
-    fi
-    echo "[INFO] Waiting for nodes.json..."
-    sleep 2
-done
-
-if [[ ! -f "$NODES_JSON" ]]; then
-    echo "[ERROR] nodes.json not found after waiting"
+if [[ -z "$PRIMARY_MANAGER" || "$PRIMARY_MANAGER" == "null" ]]; then
+    echo "[ERROR] No primary manager defined in config"
     exit 1
 fi
 
-MANAGERS=$(jq -r '.managers[]' "$NODES_JSON")
+echo "[INFO] Joining swarm via primary manager: $PRIMARY_MANAGER"
 
-JOINED=false
+# Verify manager is reachable
+if ! ssh -o ConnectTimeout=5 "$PRIMARY_MANAGER" "docker info" >/dev/null 2>&1; then
+    echo "[ERROR] Cannot reach primary manager via SSH"
+    exit 1
+fi
 
-for MANAGER in $MANAGERS; do
-    echo "[INFO] Trying manager $MANAGER..."
+TOKEN=$(ssh "$PRIMARY_MANAGER" "docker swarm join-token -q $ROLE")
 
-    if ssh -o ConnectTimeout=3 "$MANAGER" "docker info" >/dev/null 2>&1; then
-        TOKEN=$(ssh "$MANAGER" "docker swarm join-token -q $ROLE")
-
-        if docker swarm join --token "$TOKEN" "$MANAGER:2377"; then
-            echo "[INFO] Successfully joined swarm via $MANAGER"
-            JOINED=true
-            break
-        fi
-    fi
-done
-
-if [[ "$JOINED" != "true" ]]; then
+if docker swarm join --token "$TOKEN" "$PRIMARY_MANAGER:2377"; then
+    echo "[INFO] Successfully joined swarm"
+else
     echo "[ERROR] Failed to join swarm"
     exit 1
 fi
 
 # -------------------------------
-# POST-JOIN VALIDATION (MEDIUM FIX 5)
+# POST-JOIN VALIDATION
 # -------------------------------
 sleep 2
 
@@ -100,4 +84,4 @@ fi
 
 echo "[INFO] Swarm join validated"
 
-echo "[08] Swarm configuration complete."
+echo "[07] Swarm configuration complete."

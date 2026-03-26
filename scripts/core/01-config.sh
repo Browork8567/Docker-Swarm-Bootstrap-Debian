@@ -14,12 +14,17 @@ read -rp "Enter admin username: " ADMIN_USER
 read -rp "Enter admin IP address: " ADMIN_IP
 
 IS_PRIMARY_MANAGER=false
+PRIMARY_MANAGER_IP=""
 
 if [[ "$ROLE" == "manager" ]]; then
     read -rp "Is this the PRIMARY manager node? (y/n): " PRIMARY_INPUT
     if [[ "$PRIMARY_INPUT" =~ ^[Yy]$ ]]; then
         IS_PRIMARY_MANAGER=true
+    else
+        read -rp "Enter PRIMARY manager IP address: " PRIMARY_MANAGER_IP
     fi
+else
+    read -rp "Enter PRIMARY manager IP address: " PRIMARY_MANAGER_IP
 fi
 
 # -------------------------------
@@ -49,7 +54,7 @@ if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
 fi
 
 # -------------------------------
-# STORE CREDENTIALS SECURELY
+# STORE NAS CREDENTIALS
 # -------------------------------
 if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
     echo "[INFO] Storing NAS credentials securely..."
@@ -85,6 +90,7 @@ cat > "$CONFIG_FILE" <<EOF
   "admin_user": $(json_value "$ADMIN_USER"),
   "admin_ip": $(json_value "$ADMIN_IP"),
   "is_primary_manager": $IS_PRIMARY_MANAGER,
+  "primary_manager_ip": $(json_value "$PRIMARY_MANAGER_IP"),
   "nas_ip": $(json_value "$NAS_IP"),
   "nas_share": $(json_value "$NAS_SHARE"),
   "nas_path": $(json_value "$NAS_PATH"),
@@ -101,14 +107,6 @@ if ! jq empty "$CONFIG_FILE" >/dev/null 2>&1; then
     echo "[ERROR] Invalid config.json generated:"
     cat "$CONFIG_FILE"
     exit 1
-fi
-# -------------------------------
-# Generate nas mount point
-# -------------------------------
-
-if [[ -n "$NAS_PATH" ]]; then
-    echo "[INFO] Creating mount directory $NAS_PATH"
-    mkdir -p "$NAS_PATH"
 fi
 
 echo "[INFO] Configuration saved to $CONFIG_FILE"
