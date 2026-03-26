@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 CONFIG_DIR="/etc/swarm-bootstrap"
 CONFIG_FILE="$CONFIG_DIR/config.json"
@@ -22,15 +22,18 @@ if [[ "$ROLE" == "manager" ]]; then
     fi
 fi
 
+# -------------------------------
+# NAS CONFIG
+# -------------------------------
 read -rp "Do you want to configure NAS storage? (y/n): " NAS_ENABLE
 
-NAS_IP=null
-NAS_SHARE=null
-NAS_PATH=null
-NAS_USER=null
-NAS_PASS=null
-NAS_UID=null
-NAS_GID=null
+NAS_IP=""
+NAS_SHARE=""
+NAS_PATH=""
+NAS_USER=""
+NAS_PASS=""
+NAS_UID=""
+NAS_GID=""
 
 if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
     read -rp "Enter NAS IP address: " NAS_IP
@@ -45,6 +48,9 @@ if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
     read -rp "Enter GID (e.g. 1000): " NAS_GID
 fi
 
+# -------------------------------
+# STORE CREDENTIALS SECURELY
+# -------------------------------
 if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
     echo "[INFO] Storing NAS credentials securely..."
 
@@ -58,19 +64,43 @@ EOF
     chmod 600 "$CRED_FILE"
 fi
 
+# -------------------------------
+# SAFE JSON HELPER
+# -------------------------------
+json_value() {
+    if [[ -z "$1" ]]; then
+        echo null
+    else
+        echo "\"$1\""
+    fi
+}
+
+# -------------------------------
+# WRITE CONFIG
+# -------------------------------
 cat > "$CONFIG_FILE" <<EOF
 {
-  "role": "manager",
-  "node_ip": "192.168.69.10",
-  "admin_user": "base",
-  "admin_ip": "192.168.68.69",
-  "is_primary_manager": true,
-  "nas_ip": null,
-  "nas_share": null,
-  "nas_path": null,
-  "nas_user": null,
-  "nas_uid": null,
-  "nas_gid": null
+  "role": $(json_value "$ROLE"),
+  "node_ip": $(json_value "$NODE_IP"),
+  "admin_user": $(json_value "$ADMIN_USER"),
+  "admin_ip": $(json_value "$ADMIN_IP"),
+  "is_primary_manager": $IS_PRIMARY_MANAGER,
+  "nas_ip": $(json_value "$NAS_IP"),
+  "nas_share": $(json_value "$NAS_SHARE"),
+  "nas_path": $(json_value "$NAS_PATH"),
+  "nas_user": $(json_value "$NAS_USER"),
+  "nas_uid": $(json_value "$NAS_UID"),
+  "nas_gid": $(json_value "$NAS_GID")
 }
+EOF
+
+# -------------------------------
+# VALIDATE CONFIG
+# -------------------------------
+if ! jq empty "$CONFIG_FILE" >/dev/null 2>&1; then
+    echo "[ERROR] Invalid config.json generated:"
+    cat "$CONFIG_FILE"
+    exit 1
+fi
 
 echo "[INFO] Configuration saved to $CONFIG_FILE"
