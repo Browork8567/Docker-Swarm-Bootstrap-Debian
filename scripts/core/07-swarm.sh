@@ -57,21 +57,24 @@ fi
 
 echo "[INFO] Joining swarm via primary manager: $PRIMARY_MANAGER"
 
-# Verify manager is reachable
-SSH_USER="swarmd"
-SSH_KEY="/home/swarmd/.ssh/id_rsa"
+echo "[INFO] Joining swarm via primary manager: $PRIMARY_MANAGER"
 
-SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
+SSH_CMD="sudo -u swarmd ssh -i /home/swarmd/.ssh/id_rsa \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=5 \
+    swarmd@$PRIMARY_MANAGER"
 
-if ! ssh $SSH_OPTS "${SSH_USER}@${PRIMARY_MANAGER}" "docker info" >/dev/null 2>&1; then
+# Test connectivity
+if ! $SSH_CMD "docker info" >/dev/null 2>&1; then
     echo "[ERROR] Cannot reach primary manager via swarmd SSH"
     exit 1
 fi
 
-TOKEN=$(ssh $SSH_OPTS "${SSH_USER}@${PRIMARY_MANAGER}" "docker swarm join-token -q $ROLE")
+# Get join token
+TOKEN=$($SSH_CMD "docker swarm join-token -q $ROLE")
 
-TOKEN=$(ssh "$PRIMARY_MANAGER" "docker swarm join-token -q $ROLE")
-
+# Join the swarm
 if docker swarm join --token "$TOKEN" "$PRIMARY_MANAGER:2377"; then
     echo "[INFO] Successfully joined swarm"
 else
