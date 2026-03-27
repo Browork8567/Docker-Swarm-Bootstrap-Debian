@@ -8,105 +8,36 @@ mkdir -p "$CONFIG_DIR"
 
 echo "[INFO] Starting interactive configuration..."
 
-read -rp "Enter node role (manager/worker): " ROLE
-read -rp "Enter node IP address: " NODE_IP
-read -rp "Enter admin username: " ADMIN_USER
-read -rp "Enter admin IP address: " ADMIN_IP
+NODE_IP=$(hostname -I | awk '{print $1}')
+echo "[INFO] Detected node IP: $NODE_IP"
 
-IS_PRIMARY_MANAGER=false
-PRIMARY_MANAGER_IP=""
+read -rp "Enter PRIMARY manager IP: " PRIMARY_MANAGER_IP
+read -rp "Enter manager IP range (e.g. 192.168.69.10-192.168.69.20): " MANAGER_RANGE
+read -rp "Enter worker IP range (e.g. 192.168.69.30-192.168.69.60): " WORKER_RANGE
 
-if [[ "$ROLE" == "manager" ]]; then
-    read -rp "Is this the PRIMARY manager node? (y/n): " PRIMARY_INPUT
-    if [[ "$PRIMARY_INPUT" =~ ^[Yy]$ ]]; then
-        IS_PRIMARY_MANAGER=true
-    else
-        read -rp "Enter PRIMARY manager IP address: " PRIMARY_MANAGER_IP
-    fi
-else
-    read -rp "Enter PRIMARY manager IP address: " PRIMARY_MANAGER_IP
+read -rp "Enter bootstrap username [default: swarm-bootstrap]: " BOOTSTRAP_USER
+BOOTSTRAP_USER=${BOOTSTRAP_USER:-swarm-bootstrap}
+
+read -rsp "Enter bootstrap password: " BOOTSTRAP_PASS
+echo
+
+IS_PRIMARY=false
+if [[ "$NODE_IP" == "$PRIMARY_MANAGER_IP" ]]; then
+    IS_PRIMARY=true
 fi
 
-# -------------------------------
-# NAS CONFIG
-# -------------------------------
-read -rp "Do you want to configure NAS storage? (y/n): " NAS_ENABLE
-
-NAS_IP=""
-NAS_SHARE=""
-NAS_PATH=""
-NAS_USER=""
-NAS_PASS=""
-NAS_UID=""
-NAS_GID=""
-
-if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
-    read -rp "Enter NAS IP address: " NAS_IP
-    read -rp "Enter NAS share name (e.g. media): " NAS_SHARE
-    read -rp "Enter local mount path (e.g. /mnt/media): " NAS_PATH
-    read -rp "Enter NAS username (service account recommended): " NAS_USER
-    read -rsp "Enter NAS password: " NAS_PASS
-    echo
-
-    echo "[INFO] Configure UID/GID for container compatibility"
-    read -rp "Enter UID (e.g. 1000): " NAS_UID
-    read -rp "Enter GID (e.g. 1000): " NAS_GID
-fi
-
-# -------------------------------
-# STORE NAS CREDENTIALS
-# -------------------------------
-if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
-    echo "[INFO] Storing NAS credentials securely..."
-
-    CRED_FILE="/root/.nas-cred"
-
-    cat > "$CRED_FILE" <<EOF
-username=$NAS_USER
-password=$NAS_PASS
-EOF
-
-    chmod 600 "$CRED_FILE"
-fi
-
-# -------------------------------
-# SAFE JSON HELPER
-# -------------------------------
-json_value() {
-    if [[ -z "$1" ]]; then
-        echo null
-    else
-        echo "\"$1\""
-    fi
-}
-
-# -------------------------------
-# WRITE CONFIG
-# -------------------------------
 cat > "$CONFIG_FILE" <<EOF
 {
-  "role": $(json_value "$ROLE"),
-  "node_ip": $(json_value "$NODE_IP"),
-  "admin_user": $(json_value "$ADMIN_USER"),
-  "admin_ip": $(json_value "$ADMIN_IP"),
-  "is_primary_manager": $IS_PRIMARY_MANAGER,
-  "primary_manager_ip": $(json_value "$PRIMARY_MANAGER_IP"),
-  "nas_ip": $(json_value "$NAS_IP"),
-  "nas_share": $(json_value "$NAS_SHARE"),
-  "nas_path": $(json_value "$NAS_PATH"),
-  "nas_user": $(json_value "$NAS_USER"),
-  "nas_uid": $(json_value "$NAS_UID"),
-  "nas_gid": $(json_value "$NAS_GID")
+  "node_ip": "$NODE_IP",
+  "primary_manager_ip": "$PRIMARY_MANAGER_IP",
+  "manager_range": "$MANAGER_RANGE",
+  "worker_range": "$WORKER_RANGE",
+  "bootstrap_user": "$BOOTSTRAP_USER",
+  "bootstrap_password": "$BOOTSTRAP_PASS",
+  "is_primary_manager": $IS_PRIMARY
 }
 EOF
 
-# -------------------------------
-# VALIDATE CONFIG
-# -------------------------------
-if ! jq empty "$CONFIG_FILE" >/dev/null 2>&1; then
-    echo "[ERROR] Invalid config.json generated:"
-    cat "$CONFIG_FILE"
-    exit 1
-fi
+jq empty "$CONFIG_FILE"
 
 echo "[INFO] Configuration saved to $CONFIG_FILE"

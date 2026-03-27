@@ -76,3 +76,25 @@ else
 fi
 
 echo "[INFO] swarmd account ready"
+
+# -------------------------------
+# Boostrap temp user
+# -------------------------------
+
+# ADD THIS BLOCK
+
+BOOTSTRAP_USER=$(jq -r .bootstrap_user /etc/swarm-bootstrap/config.json)
+BOOTSTRAP_PASS=$(jq -r .bootstrap_password /etc/swarm-bootstrap/config.json)
+
+if id -u "$BOOTSTRAP_USER" >/dev/null 2>&1; then
+    echo "[INFO] Bootstrap user exists"
+else
+    useradd -m -s /bin/bash "$BOOTSTRAP_USER"
+    echo "$BOOTSTRAP_USER:$BOOTSTRAP_PASS" | chpasswd
+    usermod -aG sudo "$BOOTSTRAP_USER"
+
+    echo "$BOOTSTRAP_USER ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$BOOTSTRAP_USER"
+    chmod 440 "/etc/sudoers.d/$BOOTSTRAP_USER"
+
+    echo "[INFO] Bootstrap user created"
+fi
