@@ -4,7 +4,19 @@ set -euo pipefail
 CONFIG_DIR="/etc/swarm-bootstrap"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
+USER_CONFIG_DIR="$HOME/.swarm-bootstrap"
+USER_CONFIG_FILE="$USER_CONFIG_DIR/config.json"
+
 mkdir -p "$CONFIG_DIR"
+mkdir -p "$USER_CONFIG_DIR"
+
+# -------------------------------
+# REUSE EXISTING CONFIG
+# -------------------------------
+if [[ -f "$CONFIG_FILE" ]]; then
+    echo "[INFO] Existing config detected, skipping prompts"
+    exit 0
+fi
 
 echo "[INFO] Starting interactive configuration..."
 
@@ -12,39 +24,60 @@ echo "[INFO] Starting interactive configuration..."
 # AUTO-DETECT NODE IP
 # -------------------------------
 NODE_IP=$(hostname -I | awk '{print $1}')
-echo "[INFO] Detected node IP: $NODE_IP"
+echo "[INFO] Detected IP: $NODE_IP"
 
-# -------------------------------
-# BASIC INPUT
-# -------------------------------
-read -rp "Enter node role (manager/worker): " ROLE
 read -rp "Enter admin username: " ADMIN_USER
 read -rp "Enter admin IP address: " ADMIN_IP
 
-IS_PRIMARY_MANAGER=false
+# -------------------------------
+# LEADER SELECTION
+# -------------------------------
+read -rp "Is this the LEADER node? (y/n): " IS_LEADER_INPUT
+IS_LEADER=false
+if [[ "$IS_LEADER_INPUT" =~ ^[Yy]$ ]]; then
+    IS_LEADER=true
+fi
+
 PRIMARY_MANAGER_IP=""
 
-if [[ "$ROLE" == "manager" ]]; then
-    read -rp "Is this the PRIMARY manager node? (y/n): " PRIMARY_INPUT
-    if [[ "$PRIMARY_INPUT" =~ ^[Yy]$ ]]; then
-        IS_PRIMARY_MANAGER=true
-        PRIMARY_MANAGER_IP="$NODE_IP"
-    else
-        read -rp "Enter PRIMARY manager IP: " PRIMARY_MANAGER_IP
-    fi
+if [[ "$IS_LEADER" == "true" ]]; then
+    PRIMARY_MANAGER_IP="$NODE_IP"
+    echo "[INFO] Setting primary manager IP to local node: $PRIMARY_MANAGER_IP"
+
+    read -rp "Enter manager subnet (e.g. 192.168.69.0/24): " MANAGER_SUBNET
+    read -rp "Enter worker subnet (e.g. 192.168.70.0/24): " WORKER_SUBNET
+else
+    read -rp "Enter PRIMARY manager IP: " PRIMARY_MANAGER_IP
+
+    MANAGER_SUBNET=""
+    WORKER_SUBNET=""
 fi
 
 # -------------------------------
-# BOOTSTRAP USER (AUTO GENERATED)
+# BOOTSTRAP USER PASSWORD
 # -------------------------------
 BOOTSTRAP_USER="bootstrap"
 
-# Generate secure 20-character password
-BOOTSTRAP_PASS=$(tr -dc 'A-Za-z0-9!@#$%^&*()_+=' </dev/urandom | head -c 20)
+if [[ "$IS_LEADER" == "true" ]]; then
+    echo "[INFO] Leader node must define bootstrap password"
 
-echo "[INFO] Generated bootstrap credentials"
-echo "[INFO] User: $BOOTSTRAP_USER"
-echo "[INFO] Password stored securely in config"
+    read -rsp "Enter bootstrap password: " BOOTSTRAP_PASS
+    echo
+    read -rsp "Confirm bootstrap password: " BOOTSTRAP_PASS_CONFIRM
+    echo
+
+    if [[ "$BOOTSTRAP_PASS" != "$BOOTSTRAP_PASS_CONFIRM" ]]; then
+        echo "[ERROR] Passwords do not match"
+        exit 1
+    fi
+else
+    echo "[INFO] Enter bootstrap password provided by leader"
+    read -rsp "Bootstrap password: " BOOTSTRAP_PASS
+    echo
+fi
+
+# Hash password
+BOOTSTRAP_PASS_HASH=$(openssl passwd -6 "$BOOTSTRAP_PASS")
 
 # -------------------------------
 # NAS CONFIG
@@ -54,80 +87,77 @@ read -rp "Do you want to configure NAS storage? (y/n): " NAS_ENABLE
 NAS_IP=""
 NAS_SHARE=""
 NAS_PATH=""
-NAS_USER=""
-NAS_PASS=""
 NAS_UID=""
 NAS_GID=""
 
 if [[ "$NAS_ENABLE" =~ ^[Yy]$ ]]; then
-    echo "[INFO] Configuring NAS..."
-
     read -rp "Enter NAS IP address: " NAS_IP
-    read -rp "Enter NAS share name (e.g. media): " NAS_SHARE
-    read -rp "Enter local mount path (e.g. /mnt/media): " NAS_PATH
-    read -rp "Enter NAS username (service account recommended): " NAS_USER
-    read -rsp "Enter NAS password: " NAS_PASS
-    echo
+    read -rp "Enter NAS share name: " NAS_SHARE
+    read -rp "Enter mount path (e.g. /mnt/media): " NAS_PATH
 
-    echo "[INFO] Configure UID/GID for container compatibility"
-    read -rp "Enter UID (e.g. 1000): " NAS_UID
-    read -rp "Enter GID (e.g. 1000): " NAS_GID
-
-    # Create mount directory immediately
-    mkdir -p "$NAS_PATH"
-
-    # Store credentials securely
-    echo "[INFO] Storing NAS credentials securely..."
-    CRED_FILE="/root/.nas-cred"
-
-    cat > "$CRED_FILE" <<EOF
-username=$NAS_USER
-password=$NAS_PASS
-EOF
-
-    chmod 600 "$CRED_FILE"
+    echo "[INFO] UID/GID for container access"
+    read -rp "UID: " NAS_UID
+    read -rp "GID: " NAS_GID
 fi
 
 # -------------------------------
-# JSON SAFE HELPER
+# JSON HELPER
 # -------------------------------
-json_value() {
-    if [[ -z "$1" ]]; then
-        echo null
-    else
-        echo "\"$1\""
-    fi
+json_val() {
+    [[ -z "$1" ]] && echo null || echo "\"$1\""
 }
 
 # -------------------------------
-# WRITE CONFIG
+# WRITE SYSTEM CONFIG (SAFE)
 # -------------------------------
 cat > "$CONFIG_FILE" <<EOF
 {
-  "role": $(json_value "$ROLE"),
-  "node_ip": $(json_value "$NODE_IP"),
-  "admin_user": $(json_value "$ADMIN_USER"),
-  "admin_ip": $(json_value "$ADMIN_IP"),
-  "is_primary_manager": $IS_PRIMARY_MANAGER,
-  "primary_manager_ip": $(json_value "$PRIMARY_MANAGER_IP"),
-  "bootstrap_user": $(json_value "$BOOTSTRAP_USER"),
-  "bootstrap_pass": $(json_value "$BOOTSTRAP_PASS"),
-  "nas_ip": $(json_value "$NAS_IP"),
-  "nas_share": $(json_value "$NAS_SHARE"),
-  "nas_path": $(json_value "$NAS_PATH"),
-  "nas_user": $(json_value "$NAS_USER"),
-  "nas_uid": $(json_value "$NAS_UID"),
-  "nas_gid": $(json_value "$NAS_GID")
+  "node_ip": "$NODE_IP",
+  "admin_user": "$ADMIN_USER",
+  "admin_ip": "$ADMIN_IP",
+
+  "is_leader": $IS_LEADER,
+  "primary_manager_ip": "$PRIMARY_MANAGER_IP",
+
+  "manager_subnet": "$MANAGER_SUBNET",
+  "worker_subnet": "$WORKER_SUBNET",
+
+  "bootstrap_user": "$BOOTSTRAP_USER",
+  "bootstrap_pass_hash": "$BOOTSTRAP_PASS_HASH",
+
+  "nas_ip": $(json_val "$NAS_IP"),
+  "nas_share": $(json_val "$NAS_SHARE"),
+  "nas_path": $(json_val "$NAS_PATH"),
+  "nas_uid": $(json_val "$NAS_UID"),
+  "nas_gid": $(json_val "$NAS_GID")
 }
 EOF
 
-# -------------------------------
-# VALIDATE CONFIG
-# -------------------------------
+# Validate JSON
 if ! jq empty "$CONFIG_FILE" >/dev/null 2>&1; then
-    echo "[ERROR] Invalid config.json generated:"
+    echo "[ERROR] Invalid config.json generated"
     cat "$CONFIG_FILE"
     exit 1
 fi
 
-echo "[INFO] Configuration saved to $CONFIG_FILE"
+# -------------------------------
+# WRITE USER CONFIG (WITH SECRET)
+# -------------------------------
+cat > "$USER_CONFIG_FILE" <<EOF
+{
+  "node_ip": "$NODE_IP",
+  "primary_manager_ip": "$PRIMARY_MANAGER_IP",
+
+  "bootstrap_user": "$BOOTSTRAP_USER",
+  "bootstrap_password": "$BOOTSTRAP_PASS",
+
+  "manager_subnet": "$MANAGER_SUBNET",
+  "worker_subnet": "$WORKER_SUBNET"
+}
+EOF
+
+chmod 600 "$USER_CONFIG_FILE"
+
+echo "[INFO] Configuration saved:"
+echo " - System: $CONFIG_FILE"
+echo " - User:   $USER_CONFIG_FILE"

@@ -1,67 +1,77 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-
-LOG_FILE="/var/log/swarm-bootstrap.log"
-mkdir -p /var/log
-touch "$LOG_FILE"
-
-exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "[INFO] Starting Swarm Bootstrap..."
 
-########################################
-# PRE-FLIGHT: Ensure jq is installed
-########################################
+USER_CONFIG="$HOME/.swarm-bootstrap/config.json"
+SYSTEM_CONFIG="/etc/swarm-bootstrap/config.json"
 
-echo "[INFO] Checking for jq..."
+# -------------------------------
+# CHECK REQUIRED TOOLS
+# -------------------------------
+check_install() {
+    local pkg="$1"
 
-if command -v jq >/dev/null 2>&1; then
-    echo "[INFO] jq already installed"
-else
-    echo "[WARN] jq is required to continue."
-    read -rp "Install jq now? (y/n): " INSTALL_JQ
+    if dpkg -s "$pkg" >/dev/null 2>&1; then
+        echo "[INFO] $pkg already installed"
+    else
+        echo "[WARN] $pkg is required but not installed"
+        read -rp "Install $pkg now? (y/n): " INSTALL
 
-    if [[ "$INSTALL_JQ" =~ ^[Yy]$ ]]; then
-        echo "[INFO] Installing jq..."
-
-        apt-get update
-        apt-get install -y jq
-
-        if command -v jq >/dev/null 2>&1; then
-            echo "[INFO] jq installation successful"
+        if [[ "$INSTALL" =~ ^[Yy]$ ]]; then
+            apt-get update -y
+            apt-get install -y "$pkg"
         else
-            echo "[ERROR] jq installation failed. Exiting."
+            echo "[ERROR] Cannot continue without $pkg"
             exit 1
         fi
-    else
-        echo "[ERROR] jq is required. Exiting."
-        exit 1
     fi
+}
+
+check_install jq
+check_install openssl
+
+# -------------------------------
+# IMPORT USER CONFIG IF EXISTS
+# -------------------------------
+if [[ -f "$USER_CONFIG" && ! -f "$SYSTEM_CONFIG" ]]; then
+    echo "[INFO] Importing existing user config..."
+
+    mkdir -p /etc/swarm-bootstrap
+
+    jq 'del(.bootstrap_password)' "$USER_CONFIG" > "$SYSTEM_CONFIG"
+
+    echo "[INFO] Config imported to system location"
 fi
 
-########################################
-# Ensure config directory exists
-########################################
+# -------------------------------
+# RUN CORE SCRIPTS
+# -------------------------------
+# -------------------------------
+# CORE SCRIPT EXECUTION (ORDERED)
+# -------------------------------
+echo "[INFO] Running core bootstrap scripts..."
 
-mkdir -p /etc/swarm-bootstrap
+# Define execution order explicitly
+CORE_SCRIPTS=(
+    "scripts/core/01-config.sh"
+    "scripts/core/02-dependencies.sh"
+    "scripts/core/03-swarm-user.sh"
+    "scripts/core/04-ssh.sh"
+    "scripts/core/05-ufw.sh"
+    "scripts/core/06-nas.sh"
+    "scripts/core/07-swarm.sh"
+    "scripts/core/08-hardening.sh"
+    "scripts/core/09-install-runtime.sh"
+)
 
-########################################
-# Run scripts in order
-########################################
-
-for script in scripts/core/*.sh; do
-    echo "[INFO] Running $script"
-    bash "$script"
+for script in "${CORE_SCRIPTS[@]}"; do
+    if [[ -f "$script" ]]; then
+        echo "[INFO] Running $script"
+        bash "$script"
+    else
+        echo "[WARN] Missing $script, skipping"
+    fi
 done
 
-########################################
-# Final role output (safe)
-########################################
-
-if [[ -f /etc/swarm-bootstrap/config.json ]]; then
-    ROLE=$(jq -r .role /etc/swarm-bootstrap/config.json)
-else
-    ROLE="unknown"
-fi
-
-echo "[INFO] Bootstrap complete for role: $ROLE"
+echo "[INFO] Core bootstrap complete"
