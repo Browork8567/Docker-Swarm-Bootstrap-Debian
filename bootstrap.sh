@@ -62,7 +62,8 @@ CORE_SCRIPTS=(
     "scripts/core/06-nas.sh"
     "scripts/core/07-swarm.sh"
     "scripts/core/08-hardening.sh"
-    "scripts/core/09-install-runtime.sh"
+    "scripts/core/09a-install-init.sh"
+    "scripts/core/09b-install-runtime.sh"
 )
 
 for script in "${CORE_SCRIPTS[@]}"; do
